@@ -1,0 +1,28 @@
+# .NET
+bin/
+obj/
+*.user
+*.db
+*.db-shm
+*.db-wal
+.env
+*.log
+appsettings.Development.json
+dotnet-tools.json
+
+# Frontend
+node_modules/
+dist/
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
