@@ -15,22 +15,30 @@ export function ThemeProvider({ children }) {
     localStorage.setItem('theme', dark ? 'dark' : 'light');
   }, [dark]);
 
-  // Sync with OS changes when no manual preference is saved
+  // Sync with OS changes unless user has explicitly set a preference
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = (e) => {
-      if (!localStorage.getItem('theme')) setDark(e.matches);
+      const saved = localStorage.getItem('theme');
+      if (!saved) setDark(e.matches);
     };
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
 
+  const toggle = () => {
+    const next = !dark;
+    setDark(next);
+    localStorage.setItem('theme', next ? 'dark' : 'light');
+  };
+
+  const resetToOS = () => {
+    localStorage.removeItem('theme');
+    setDark(osPrefersDark());
+  };
+
   return (
-    <ThemeContext.Provider value={{ dark, toggle: () => {
-      const next = !dark;
-      setDark(next);
-      localStorage.setItem('theme', next ? 'dark' : 'light');
-    }}}>
+    <ThemeContext.Provider value={{ dark, toggle, resetToOS }}>
       {children}
     </ThemeContext.Provider>
   );

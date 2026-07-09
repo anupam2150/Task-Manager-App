@@ -22,8 +22,9 @@ builder.Services.AddControllers()
     .AddJsonOptions(opt =>
         opt.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
+var dbPath = Path.Combine(builder.Environment.ContentRootPath, "taskmanager.db");
 builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseSqlite(builder.Configuration.GetConnectionString("Default")));
+    opt.UseSqlite($"Data Source={dbPath}"));
 
 var jwtKey = Environment.GetEnvironmentVariable("JWT__Key")
     ?? builder.Configuration["Jwt:Key"]

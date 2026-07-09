@@ -63,7 +63,10 @@ function TaskCardInner({ task, projectId, onRefresh, labels, allTasks, isDraggin
     } catch { push('Failed to log time', 'error'); }
   };
 
-  useEffect(() => () => clearInterval(timerRef.current), []);
+  useEffect(() => () => {
+    clearInterval(timerRef.current);
+    setTimerRunning(false);
+  }, []);
 
   const formatTime = (s) => {
     const h = Math.floor(s / 3600);
@@ -528,7 +531,15 @@ export default function Tasks() {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
 
     try {
-      await api.put(`/projects/${safeProjectId}/tasks/${taskId}`, { ...task, status: newStatus });
+      await api.put(`/projects/${safeProjectId}/tasks/${taskId}`, {
+        title: task.title,
+        description: task.description,
+        status: newStatus,
+        priority: task.priority,
+        dueDate: task.dueDate ?? null,
+        assignedToId: task.assignedToId ?? null,
+        recurrence: task.recurrence
+      });
       push(`Moved to ${COL_LABEL[newStatus]}`, 'success');
     } catch {
       push('Failed to move task', 'error');

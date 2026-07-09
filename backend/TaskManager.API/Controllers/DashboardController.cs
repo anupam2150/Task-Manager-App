@@ -21,26 +21,29 @@ public class DashboardController(AppDbContext db) : ControllerBase
             .Where(p => p.OwnerId == UserId)
             .Select(p => p.Id)
             .ToListAsync();
-        var tasks = await db.Tasks
-            .Where(t => projectIds.Contains(t.ProjectId))
-            .ToListAsync();
+
+        var taskQuery = db.Tasks.Where(t => projectIds.Contains(t.ProjectId));
         var now = DateTime.UtcNow;
+
+        var total = await taskQuery.CountAsync();
+        var done = await taskQuery.CountAsync(t => t.Status == Models.TaskStatus.Done);
 
         var result = new
         {
             totalProjects = projectIds.Count,
-            totalTasks = tasks.Count,
-            todo = tasks.Count(t => t.Status == Models.TaskStatus.Todo),
-            inProgress = tasks.Count(t => t.Status == Models.TaskStatus.InProgress),
-            done = tasks.Count(t => t.Status == Models.TaskStatus.Done),
-            overdue = tasks.Count(t => t.DueDate.HasValue && t.DueDate < now && t.Status != Models.TaskStatus.Done),
-            dueSoon = tasks.Count(t => t.DueDate.HasValue && t.DueDate >= now && t.DueDate <= now.AddDays(3) && t.Status != Models.TaskStatus.Done),
-            highPriority = tasks.Count(t => t.Priority == TaskPriority.High && t.Status != Models.TaskStatus.Done),
-            completionRate = tasks.Count == 0 ? 0 : (int)Math.Round((double)tasks.Count(t => t.Status == Models.TaskStatus.Done) / tasks.Count * 100),
-            recentTasks = tasks
+            totalTasks = total,
+            todo = await taskQuery.CountAsync(t => t.Status == Models.TaskStatus.Todo),
+            inProgress = await taskQuery.CountAsync(t => t.Status == Models.TaskStatus.InProgress),
+            done,
+            overdue = await taskQuery.CountAsync(t => t.DueDate.HasValue && t.DueDate < now && t.Status != Models.TaskStatus.Done),
+            dueSoon = await taskQuery.CountAsync(t => t.DueDate.HasValue && t.DueDate >= now && t.DueDate <= now.AddDays(3) && t.Status != Models.TaskStatus.Done),
+            highPriority = await taskQuery.CountAsync(t => t.Priority == TaskPriority.High && t.Status != Models.TaskStatus.Done),
+            completionRate = total == 0 ? 0 : (int)Math.Round((double)done / total * 100),
+            recentTasks = await taskQuery
                 .OrderByDescending(t => t.CreatedAt)
                 .Take(10)
                 .Select(t => new { t.Id, t.Title, t.Status, t.Priority, t.DueDate, t.ProjectId })
+                .ToListAsync()
         };
 
         return Ok(result);

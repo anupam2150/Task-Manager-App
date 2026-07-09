@@ -11,7 +11,14 @@ public class RecurringTaskService(IServiceScopeFactory scopeFactory, ILogger<Rec
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await SpawnRecurringTasks();
+            try
+            {
+                await SpawnRecurringTasks();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "RecurringTaskService failed during spawn cycle");
+            }
             await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
         }
     }
