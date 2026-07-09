@@ -838,3 +838,111 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 .dep-done { color: #059669; text-decoration: line-through; opacity: 0.7; }
 .dep-pending { color: var(--text); }
 .dep-empty { font-size: 0.8rem; color: var(--text-faint); margin: 0.25rem 0; }
+
+/* ── Notifications ── */
+.notif-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.notif {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 300px;
+  max-width: 420px;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.1);
+  pointer-events: all;
+  position: relative;
+  overflow: hidden;
+  animation: notif-slide-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+.notif-exit {
+  animation: notif-slide-out 0.35s ease-in forwards;
+}
+
+@keyframes notif-slide-in {
+  from { opacity: 0; transform: translateX(110%) scale(0.9); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes notif-slide-out {
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to   { opacity: 0; transform: translateX(110%) scale(0.9); }
+}
+
+.notif-success {
+  background: linear-gradient(135deg, #065f46ee, #047857ee);
+  color: #ecfdf5;
+}
+.notif-error {
+  background: linear-gradient(135deg, #7f1d1dee, #b91c1cee);
+  color: #fef2f2;
+}
+.notif-info {
+  background: linear-gradient(135deg, #1e3a5fee, #1d4ed8ee);
+  color: #eff6ff;
+}
+.notif-warning {
+  background: linear-gradient(135deg, #78350fee, #b45309ee);
+  color: #fffbeb;
+}
+
+.notif-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.notif-message {
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.notif-close {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: inherit;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  padding: 0;
+}
+.notif-close:hover { background: rgba(255,255,255,0.35); }
+
+.notif-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  background: rgba(255,255,255,0.4);
+  border-radius: 0 0 12px 12px;
+  animation: notif-progress 4s linear forwards;
+  transform-origin: left;
+}
+
+@keyframes notif-progress {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
