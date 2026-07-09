@@ -26,7 +26,10 @@ public class ProjectsController(AppDbContext db) : ControllerBase
             .OrderByDescending(p => p.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(p => new ProjectDto(p.Id, p.Name, p.Description, p.CreatedAt, p.OwnerId))
+            .Select(p => new ProjectDto(
+                p.Id, p.Name, p.Description, p.CreatedAt, p.OwnerId,
+                p.Tasks.Count,
+                p.Tasks.Count(t => t.Status == Models.TaskStatus.Done)))
             .ToListAsync();
         return Ok(new PagedResult<ProjectDto>(items, total, page, pageSize));
     }
@@ -35,7 +38,10 @@ public class ProjectsController(AppDbContext db) : ControllerBase
     public async Task<IActionResult> Get(int id)
     {
         var project = await db.Projects.FirstOrDefaultAsync(p => p.Id == id && p.OwnerId == UserId);
-        return project is null ? NotFound() : Ok(new ProjectDto(project.Id, project.Name, project.Description, project.CreatedAt, project.OwnerId));
+        if (project is null) return NotFound();
+        var taskCount = await db.Tasks.CountAsync(t => t.ProjectId == id);
+        var completedCount = await db.Tasks.CountAsync(t => t.ProjectId == id && t.Status == Models.TaskStatus.Done);
+        return Ok(new ProjectDto(project.Id, project.Name, project.Description, project.CreatedAt, project.OwnerId, taskCount, completedCount));
     }
 
     [HttpPost]
@@ -46,7 +52,7 @@ public class ProjectsController(AppDbContext db) : ControllerBase
         db.Projects.Add(project);
         await db.SaveChangesAsync();
         return CreatedAtAction(nameof(Get), new { id = project.Id },
-            new ProjectDto(project.Id, project.Name, project.Description, project.CreatedAt, project.OwnerId));
+            new ProjectDto(project.Id, project.Name, project.Description, project.CreatedAt, project.OwnerId, 0, 0));
     }
 
     [HttpPut("{id}")]
@@ -58,7 +64,9 @@ public class ProjectsController(AppDbContext db) : ControllerBase
         project.Name = dto.Name;
         project.Description = dto.Description;
         await db.SaveChangesAsync();
-        return Ok(new ProjectDto(project.Id, project.Name, project.Description, project.CreatedAt, project.OwnerId));
+        var taskCount = await db.Tasks.CountAsync(t => t.ProjectId == id);
+        var completedCount = await db.Tasks.CountAsync(t => t.ProjectId == id && t.Status == Models.TaskStatus.Done);
+        return Ok(new ProjectDto(project.Id, project.Name, project.Description, project.CreatedAt, project.OwnerId, taskCount, completedCount));
     }
 
     [HttpDelete("{id}")]
