@@ -33,22 +33,32 @@ export default function Register() {
   };
 
   return (
-    <div className="auth-container">
-      <h2>Register</h2>
-      {error && <p className="error">{error}</p>}
-      <form onSubmit={handleSubmit}>
-        <input placeholder="Username (3-50 characters)" value={form.username}
-          onChange={e => setForm({ ...form, username: e.target.value })} required />
-        <input placeholder="Email" type="email" value={form.email}
-          onChange={e => setForm({ ...form, email: e.target.value })} required />
-        <input placeholder="Password" type="password" value={form.password}
-          onChange={e => setForm({ ...form, password: e.target.value })} required />
-        <small className="hint">
-          Min 8 characters with uppercase, lowercase, digit and special character (e.g. Test@1234)
-        </small>
-        <button type="submit" disabled={loading}>{loading ? 'Registering...' : 'Register'}</button>
-      </form>
-      <p>Already have an account? <Link to="/login">Login</Link></p>
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-left">
+          <div className="auth-logo">✓</div>
+          <h1>TaskManager</h1>
+          <p>Create an account and start managing your projects and tasks today.</p>
+        </div>
+        <div className="auth-right">
+          <h2>Create account</h2>
+          <p className="subtitle">Fill in the details below to get started</p>
+          {error && <p className="error">{error}</p>}
+          <form onSubmit={handleSubmit}>
+            <input placeholder="Username (3-50 characters)" value={form.username}
+              onChange={e => setForm({ ...form, username: e.target.value })} required />
+            <input placeholder="Email address" type="email" value={form.email}
+              onChange={e => setForm({ ...form, email: e.target.value })} required />
+            <input placeholder="Password" type="password" value={form.password}
+              onChange={e => setForm({ ...form, password: e.target.value })} required />
+            <small className="hint">Min 8 chars with uppercase, lowercase, digit & special character (e.g. Test@1234)</small>
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? 'Creating account...' : 'Create Account'}
+            </button>
+          </form>
+          <p className="switch-link">Already have an account? <Link to="/login">Sign in</Link></p>
+        </div>
+      </div>
     </div>
   );
 }
