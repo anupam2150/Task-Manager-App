@@ -1,5 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import {
+  DndContext, PointerSensor, useSensor, useSensors,
+  DragOverlay, closestCorners
+} from '@dnd-kit/core';
+import {
+  SortableContext, verticalListSortingStrategy, useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import api from '../api/api';
 import { useNotif } from '../context/NotifContext';
 
@@ -26,22 +34,13 @@ const getDueBadge = (dueDate, status) => {
   return null;
 };
 
-function TaskCard({ task, projectId, onRefresh, labels }) {
+function TaskCardInner({ task, projectId, onRefresh, labels, isDragging }) {
   const { push } = useNotif();
   const [expanded, setExpanded] = useState(false);
   const [comment, setComment] = useState('');
   const [subtaskTitle, setSubtaskTitle] = useState('');
 
   const safeId = (id) => Number.isInteger(id) && id > 0;
-
-  const handleStatusChange = async (status) => {
-    if (!safeId(task.id)) return;
-    try {
-      await api.put(`/projects/${projectId}/tasks/${task.id}`, { ...task, status });
-      push(`Task moved to ${COL_LABEL[status]}`, 'success');
-      onRefresh();
-    } catch { push('Failed to update status', 'error'); }
-  };
 
   const handleDelete = async () => {
     if (!safeId(task.id) || !window.confirm(`Delete "${task.title}"?`)) return;
@@ -119,7 +118,8 @@ function TaskCard({ task, projectId, onRefresh, labels }) {
   const totalSubs = task.subTasks?.length ?? 0;
 
   return (
-    <div className="task-card">
+    <div className={`task-card${isDragging ? ' task-card--dragging' : ''}`}>
+      <div className="task-card-drag-handle" title="Drag to move">⠿</div>
       <div className="task-card-top">
         <strong>{task.title}</strong>
         <div className="task-card-badges">
@@ -159,18 +159,14 @@ function TaskCard({ task, projectId, onRefresh, labels }) {
       )}
 
       <div className="task-card-footer">
-        <select value={task.status} onChange={e => handleStatusChange(e.target.value)}>
-          {STATUSES.map(s => <option key={s} value={s}>{COL_LABEL[s]}</option>)}
-        </select>
         <button className="btn-icon" onClick={() => setExpanded(e => !e)} title="Details">
-          {expanded ? '▲' : '▼'}
+          {expanded ? '▲ Hide' : '▼ Details'}
         </button>
         <button className="btn-delete" onClick={handleDelete}>🗑</button>
       </div>
 
       {expanded && (
         <div className="task-expanded">
-          {/* Labels */}
           {labels.length > 0 && (
             <div className="expanded-section">
               <h4>Add Labels</h4>
@@ -186,7 +182,6 @@ function TaskCard({ task, projectId, onRefresh, labels }) {
             </div>
           )}
 
-          {/* Subtasks */}
           <div className="expanded-section">
             <h4>Subtasks</h4>
             {task.subTasks?.map(s => (
@@ -205,7 +200,6 @@ function TaskCard({ task, projectId, onRefresh, labels }) {
             </form>
           </div>
 
-          {/* Comments */}
           <div className="expanded-section">
             <h4>Comments</h4>
             {task.comments?.map(c => (
@@ -230,6 +224,47 @@ function TaskCard({ task, projectId, onRefresh, labels }) {
   );
 }
 
+function SortableTaskCard({ task, projectId, onRefresh, labels }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: `task-${task.id}`,
+    data: { type: 'task', task }
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.35 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <div {...listeners} style={{ cursor: 'grab', touchAction: 'none' }}>
+        <TaskCardInner task={task} projectId={projectId} onRefresh={onRefresh} labels={labels} isDragging={isDragging} />
+      </div>
+    </div>
+  );
+}
+
+function DroppableColumn({ status, tasks, projectId, onRefresh, labels }) {
+  return (
+    <div className={`kanban-col ${COL_CLASS[status]}`}>
+      <div className="kanban-col-header">
+        <h3>{COL_LABEL[status]}</h3>
+        <span className="col-count">{tasks.length}</span>
+      </div>
+      <SortableContext items={tasks.map(t => `task-${t.id}`)} strategy={verticalListSortingStrategy}>
+        {tasks.length === 0 ? (
+          <div className="empty-col-drop">Drop tasks here</div>
+        ) : (
+          tasks.map(task => (
+            <SortableTaskCard key={task.id} task={task} projectId={projectId} onRefresh={onRefresh} labels={labels} />
+          ))
+        )}
+      </SortableContext>
+    </div>
+  );
+}
+
 export default function Tasks() {
   const { projectId } = useParams();
   const safeProjectId = parseInt(projectId, 10);
@@ -243,6 +278,11 @@ export default function Tasks() {
   const [search, setSearch] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [activeTask, setActiveTask] = useState(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
 
   const load = useCallback(async () => {
     if (!safeProjectId) return;
@@ -276,6 +316,43 @@ export default function Tasks() {
       push(extractError(err, 'Failed to create task'), 'error');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDragStart = ({ active }) => {
+    const task = tasks.find(t => `task-${t.id}` === active.id);
+    setActiveTask(task ?? null);
+  };
+
+  const handleDragEnd = async ({ active, over }) => {
+    setActiveTask(null);
+    if (!over) return;
+
+    const taskId = parseInt(active.id.toString().replace('task-', ''), 10);
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    // Determine target status — over could be a column id or another task id
+    let newStatus = null;
+    if (STATUSES.includes(over.id)) {
+      newStatus = over.id;
+    } else {
+      const overId = parseInt(over.id.toString().replace('task-', ''), 10);
+      const overTask = tasks.find(t => t.id === overId);
+      if (overTask) newStatus = overTask.status;
+    }
+
+    if (!newStatus || newStatus === task.status) return;
+
+    // Optimistic update
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+
+    try {
+      await api.put(`/projects/${safeProjectId}/tasks/${taskId}`, { ...task, status: newStatus });
+      push(`Moved to ${COL_LABEL[newStatus]}`, 'success');
+    } catch {
+      push('Failed to move task', 'error');
+      load(); // revert on failure
     }
   };
 
@@ -338,23 +415,30 @@ export default function Tasks() {
       {loading ? (
         <p className="loading">Loading tasks...</p>
       ) : (
-        <div className="kanban">
-          {STATUSES.map(status => (
-            <div key={status} className={`kanban-col ${COL_CLASS[status]}`}>
-              <div className="kanban-col-header">
-                <h3>{COL_LABEL[status]}</h3>
-                <span className="col-count">{grouped[status].length}</span>
-              </div>
-              {grouped[status].length === 0 ? (
-                <p className="empty-col">No tasks here</p>
-              ) : (
-                grouped[status].map(task => (
-                  <TaskCard key={task.id} task={task} projectId={safeProjectId} onRefresh={load} labels={labels} />
-                ))
-              )}
-            </div>
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="kanban">
+            {STATUSES.map(status => (
+              <DroppableColumn
+                key={status}
+                status={status}
+                tasks={grouped[status]}
+                projectId={safeProjectId}
+                onRefresh={load}
+                labels={labels}
+              />
+            ))}
+          </div>
+          <DragOverlay>
+            {activeTask && (
+              <TaskCardInner task={activeTask} projectId={safeProjectId} onRefresh={load} labels={labels} isDragging />
+            )}
+          </DragOverlay>
+        </DndContext>
       )}
     </div>
   );
