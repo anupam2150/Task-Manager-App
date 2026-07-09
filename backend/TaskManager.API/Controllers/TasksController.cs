@@ -18,7 +18,7 @@ public class TasksController(AppDbContext db) : ControllerBase
     private static TaskDto ToDto(TaskItem t) => new(
         t.Id, t.Title, t.Description, t.Status, t.Priority,
         t.DueDate, t.CreatedAt, t.ProjectId, t.AssignedToId,
-        t.TimeSpentSeconds,
+        t.TimeSpentSeconds, t.IsArchived, t.ArchivedAt,
         t.TaskLabels.Select(tl => new LabelDto(tl.Label.Id, tl.Label.Name, tl.Label.Color)).ToList(),
         t.SubTasks.Select(s => new SubTaskDto(s.Id, s.Title, s.IsCompleted)).ToList(),
         t.Comments.Select(c => new CommentDto(c.Id, c.Content, c.CreatedAt, c.Author.Username)).ToList(),
@@ -29,9 +29,9 @@ public class TasksController(AppDbContext db) : ControllerBase
     private async Task<bool> ProjectBelongsToUser(int projectId) =>
         await db.Projects.AnyAsync(p => p.Id == projectId && p.OwnerId == UserId);
 
-    private IQueryable<TaskItem> TasksWithIncludes(int projectId) =>
+    private IQueryable<TaskItem> TasksWithIncludes(int projectId, bool archived = false) =>
         db.Tasks
-            .Where(t => t.ProjectId == projectId)
+            .Where(t => t.ProjectId == projectId && t.IsArchived == archived)
             .Include(t => t.TaskLabels).ThenInclude(tl => tl.Label)
             .Include(t => t.SubTasks)
             .Include(t => t.Comments).ThenInclude(c => c.Author)
@@ -118,6 +118,44 @@ public class TasksController(AppDbContext db) : ControllerBase
         db.Tasks.Remove(task);
         await db.SaveChangesAsync();
         return NoContent();
+    }
+
+    // ── Archive ──
+    [HttpPost("{id}/archive")]
+    [Consumes("application/json")]
+    public async Task<IActionResult> Archive(int projectId, int id)
+    {
+        if (!await ProjectBelongsToUser(projectId)) return Forbid();
+        var task = await db.Tasks.FirstOrDefaultAsync(t => t.Id == id && t.ProjectId == projectId);
+        if (task is null) return NotFound();
+        task.IsArchived = true;
+        task.ArchivedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        await Log(id, "Task archived");
+        return NoContent();
+    }
+
+    [HttpPost("{id}/restore")]
+    [Consumes("application/json")]
+    public async Task<IActionResult> Restore(int projectId, int id)
+    {
+        if (!await ProjectBelongsToUser(projectId)) return Forbid();
+        var task = await db.Tasks.FirstOrDefaultAsync(t => t.Id == id && t.ProjectId == projectId && t.IsArchived);
+        if (task is null) return NotFound();
+        task.IsArchived = false;
+        task.ArchivedAt = null;
+        await db.SaveChangesAsync();
+        await Log(id, "Task restored from archive");
+        return NoContent();
+    }
+
+    [HttpGet("archived")]
+    public async Task<IActionResult> GetArchived(int projectId)
+    {
+        if (!await ProjectBelongsToUser(projectId)) return Forbid();
+        var items = await TasksWithIncludes(projectId, archived: true)
+            .OrderByDescending(t => t.ArchivedAt).ToListAsync();
+        return Ok(items.Select(ToDto));
     }
 
     // ── Time Tracking ──

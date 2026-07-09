@@ -28,6 +28,8 @@ public record TaskDto(
     DateTime? DueDate, DateTime CreatedAt,
     int ProjectId, int? AssignedToId,
     int TimeSpentSeconds,
+    bool IsArchived,
+    DateTime? ArchivedAt,
     List<LabelDto> Labels,
     List<SubTaskDto> SubTasks,
     List<CommentDto> Comments,

@@ -1,0 +1,40 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace TaskManager.API.Migrations
+{
+    /// <inheritdoc />
+    public partial class AddTaskArchiving : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<DateTime>(
+                name: "ArchivedAt",
+                table: "Tasks",
+                type: "TEXT",
+                nullable: true);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "IsArchived",
+                table: "Tasks",
+                type: "INTEGER",
+                nullable: false,
+                defaultValue: false);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(
+                name: "ArchivedAt",
+                table: "Tasks");
+
+            migrationBuilder.DropColumn(
+                name: "IsArchived",
+                table: "Tasks");
+        }
+    }
+}

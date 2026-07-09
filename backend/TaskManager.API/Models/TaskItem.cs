@@ -21,4 +21,6 @@ public class TaskItem
     public ICollection<TaskLabel> TaskLabels { get; set; } = [];
     public ICollection<ActivityLog> ActivityLogs { get; set; } = [];
     public int TimeSpentSeconds { get; set; } = 0;
+    public bool IsArchived { get; set; } = false;
+    public DateTime? ArchivedAt { get; set; }
 }

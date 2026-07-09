@@ -82,6 +82,15 @@ function TaskCardInner({ task, projectId, onRefresh, labels, isDragging }) {
     } catch { push('Failed to delete task', 'error'); }
   };
 
+  const handleArchive = async () => {
+    if (!safeId(task.id)) return;
+    try {
+      await api.post(`/projects/${projectId}/tasks/${task.id}/archive`);
+      push('Task archived', 'info');
+      onRefresh();
+    } catch { push('Failed to archive task', 'error'); }
+  };
+
   const handleAddComment = async (e) => {
     e.preventDefault();
     if (!comment.trim() || !safeId(task.id)) return;
@@ -204,6 +213,7 @@ function TaskCardInner({ task, projectId, onRefresh, labels, isDragging }) {
         <button className="btn-icon" onClick={() => setExpanded(e => !e)} title="Details">
           {expanded ? '▲ Hide' : '▼ Details'}
         </button>
+        <button className="btn-archive" onClick={handleArchive} title="Archive task">📦</button>
         <button className="btn-delete" onClick={handleDelete}>🗑</button>
       </div>
 
@@ -338,6 +348,8 @@ export default function Tasks() {
   const [filterPriority, setFilterPriority] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [activeTask, setActiveTask] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivedTasks, setArchivedTasks] = useState([]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -359,6 +371,32 @@ export default function Tasks() {
       setLoading(false);
     }
   }, [safeProjectId]);
+
+  const loadArchived = useCallback(async () => {
+    if (!safeProjectId) return;
+    try {
+      const res = await api.get(`/projects/${safeProjectId}/tasks/archived`);
+      setArchivedTasks(res.data);
+    } catch { push('Failed to load archived tasks', 'error'); }
+  }, [safeProjectId]);
+
+  const handleRestore = async (taskId) => {
+    try {
+      await api.post(`/projects/${safeProjectId}/tasks/${taskId}/restore`);
+      push('Task restored', 'success');
+      load();
+      loadArchived();
+    } catch { push('Failed to restore task', 'error'); }
+  };
+
+  const handleDeleteArchived = async (taskId, title) => {
+    if (!window.confirm(`Permanently delete "${title}"?`)) return;
+    try {
+      await api.delete(`/projects/${safeProjectId}/tasks/${taskId}`);
+      push('Task permanently deleted', 'info');
+      loadArchived();
+    } catch { push('Failed to delete task', 'error'); }
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -437,6 +475,12 @@ export default function Tasks() {
         {overdueCount > 0 && (
           <span className="overdue-banner">🚨 {overdueCount} overdue task{overdueCount !== 1 ? 's' : ''}</span>
         )}
+        <button className="btn-outline" style={{ marginLeft: 'auto' }} onClick={() => {
+          setShowArchived(s => !s);
+          if (!showArchived) loadArchived();
+        }}>
+          📦 {showArchived ? 'Hide Archived' : 'View Archived'}
+        </button>
       </div>
 
       <form onSubmit={handleCreate} className="add-form">
@@ -498,6 +542,29 @@ export default function Tasks() {
             )}
           </DragOverlay>
         </DndContext>
+      )}
+
+      {showArchived && (
+        <div className="archived-panel">
+          <h3>📦 Archived Tasks ({archivedTasks.length})</h3>
+          {archivedTasks.length === 0 ? (
+            <p className="empty-col">No archived tasks</p>
+          ) : (
+            archivedTasks.map(t => (
+              <div key={t.id} className="archived-item">
+                <div className="archived-item-info">
+                  <span className="archived-item-title">{t.title}</span>
+                  <span className={`badge ${t.priority.toLowerCase()}`}>{t.priority}</span>
+                  <small>Archived {new Date(t.archivedAt).toLocaleDateString()}</small>
+                </div>
+                <div className="archived-item-actions">
+                  <button className="btn-mini" onClick={() => handleRestore(t.id)}>↩ Restore</button>
+                  <button className="btn-delete" onClick={() => handleDeleteArchived(t.id, t.title)}>🗑</button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       )}
     </div>
   );
