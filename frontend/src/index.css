@@ -563,6 +563,13 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 .btn-archive:hover { background: #fffbeb; border-color: #f59e0b; }
 
+.btn-export {
+  background: #f0fdf4;
+  color: #16a34a;
+  border-color: #bbf7d0;
+}
+.btn-export:hover { background: #dcfce7; border-color: #16a34a; }
+
 .archived-panel {
   margin-top: 2rem;
   background: #fff;

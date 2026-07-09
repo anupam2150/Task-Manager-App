@@ -403,6 +403,19 @@ export default function Tasks() {
     } catch { push('Failed to delete task', 'error'); }
   };
 
+  const handleExport = async () => {
+    try {
+      const res = await api.get(`/projects/${safeProjectId}/tasks/export`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = res.headers['content-disposition']?.split('filename=')[1] ?? 'tasks.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+      push('Tasks exported!', 'success');
+    } catch { push('Failed to export tasks', 'error'); }
+  };
+
   useEffect(() => { load(); }, [load]);
 
   const handleCreate = async (e) => {
@@ -485,6 +498,9 @@ export default function Tasks() {
           if (!showArchived) loadArchived();
         }}>
           📦 {showArchived ? 'Hide Archived' : 'View Archived'}
+        </button>
+        <button className="btn-outline btn-export" onClick={handleExport}>
+          ⬇️ Export CSV
         </button>
       </div>
 

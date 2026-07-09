@@ -160,6 +160,37 @@ public class TasksController(AppDbContext db) : ControllerBase
         return Ok(items.Select(ToDto));
     }
 
+    // ── CSV Export ──
+    [HttpGet("export")]
+    public async Task<IActionResult> Export(int projectId)
+    {
+        if (!await ProjectBelongsToUser(projectId)) return Forbid();
+        var project = await db.Projects.FindAsync(projectId);
+        var tasks = await db.Tasks
+            .Where(t => t.ProjectId == projectId)
+            .Include(t => t.TaskLabels).ThenInclude(tl => tl.Label)
+            .Include(t => t.SubTasks)
+            .OrderBy(t => t.Status).ThenByDescending(t => t.CreatedAt)
+            .ToListAsync();
+
+        var csv = new System.Text.StringBuilder();
+        csv.AppendLine("Id,Title,Description,Status,Priority,DueDate,TimeSpentMinutes,Recurrence,SubtasksTotal,SubtasksDone,Labels,CreatedAt,IsArchived");
+
+        foreach (var t in tasks)
+        {
+            var labels = string.Join("|", t.TaskLabels.Select(tl => tl.Label.Name));
+            var subTotal = t.SubTasks.Count;
+            var subDone = t.SubTasks.Count(s => s.IsCompleted);
+            var due = t.DueDate.HasValue ? t.DueDate.Value.ToString("yyyy-MM-dd") : "";
+            csv.AppendLine($"{t.Id},\"{Escape(t.Title)}\",\"{Escape(t.Description)}\",{t.Status},{t.Priority},{due},{t.TimeSpentSeconds / 60},{t.Recurrence},{subTotal},{subDone},\"{labels}\",{t.CreatedAt:yyyy-MM-dd},{t.IsArchived}");
+        }
+
+        var fileName = $"{Escape(project?.Name ?? "tasks")}-{DateTime.UtcNow:yyyyMMdd}.csv";
+        return File(System.Text.Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", fileName);
+    }
+
+    private static string Escape(string s) => s.Replace("\"", "\"\"").Replace("\n", " ").Replace("\r", "");
+
     // ── Time Tracking ──
     [HttpPost("{id}/time")]
     [Consumes("application/json")]
