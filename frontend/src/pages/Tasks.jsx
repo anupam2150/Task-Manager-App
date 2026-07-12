@@ -444,7 +444,7 @@ export default function Tasks() {
     } finally {
       setLoading(false);
     }
-  }, [safeProjectId]);
+  }, [safeProjectId, push]);
 
   const loadArchived = useCallback(async () => {
     if (!safeProjectId) return;
@@ -452,7 +452,7 @@ export default function Tasks() {
       const res = await api.get(`/projects/${safeProjectId}/tasks/archived`);
       setArchivedTasks(res.data);
     } catch { push('Failed to load archived tasks', 'error'); }
-  }, [safeProjectId]);
+  }, [safeProjectId, push]);
 
   const handleRestore = async (taskId) => {
     try {
@@ -485,6 +485,7 @@ export default function Tasks() {
     } catch { push('Failed to export tasks', 'error'); }
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {

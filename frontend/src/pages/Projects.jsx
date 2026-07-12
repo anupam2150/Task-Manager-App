@@ -85,8 +85,9 @@ export default function Projects() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [push]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   const handleDelete = async (id, name) => {
@@ -211,7 +212,6 @@ export default function Projects() {
             {projects.map((p, i) => {
               const accent = CARD_ACCENTS[i % CARD_ACCENTS.length];
               const pct = p.taskCount > 0 ? Math.round((p.completedCount / p.taskCount) * 100) : 0;
-              const inProgress = (p.taskCount ?? 0) - (p.completedCount ?? 0) - ((p.taskCount ?? 0) - (p.completedCount ?? 0) - (p.inProgressCount ?? 0));
               return (
                 <div key={p.id} className="proj-card">
                   <div className="proj-card-accent" style={{ background: accent }} />

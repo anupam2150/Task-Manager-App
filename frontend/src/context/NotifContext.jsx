@@ -39,4 +39,4 @@ export function NotifProvider({ children }) {
   );
 }
 
-export const useNotif = () => useContext(NotifContext);
+export const useNotif = () => useContext(NotifContext); // eslint-disable-line react-refresh/only-export-components

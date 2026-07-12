@@ -94,10 +94,10 @@ public class TasksController(AppDbContext db) : ControllerBase
         if (task is null) return NotFound();
 
         var changes = new List<string>();
-        if (task.Status != dto.Status) changes.Add($"Status changed to {dto.Status}");
-        if (task.Priority != dto.Priority) changes.Add($"Priority changed to {dto.Priority}");
-        if (task.Title != dto.Title) changes.Add($"Title updated");
-        if (task.DueDate != dto.DueDate) changes.Add($"Due date updated");
+        if (task.Status != dto.Status) changes.Add($"Status changed to {SanitizeLog(dto.Status.ToString())}");
+        if (task.Priority != dto.Priority) changes.Add($"Priority changed to {SanitizeLog(dto.Priority.ToString())}");
+        if (task.Title != dto.Title) changes.Add("Title updated");
+        if (task.DueDate != dto.DueDate) changes.Add("Due date updated");
 
         task.Title = dto.Title; task.Description = dto.Description;
         task.Status = dto.Status; task.Priority = dto.Priority;
@@ -191,7 +191,9 @@ public class TasksController(AppDbContext db) : ControllerBase
         return File(System.Text.Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", fileName);
     }
 
-    private static string Escape(string s) => s.Replace("\"", "\"\"").Replace("\n", " ").Replace("\r", "");
+    private static string Escape(string? s) => (s ?? string.Empty).Replace("\"", "\"\"").Replace("\n", " ").Replace("\r", "");
+
+    private static string SanitizeLog(string? s) => (s ?? string.Empty).Replace("\n", " ").Replace("\r", "").Trim();
 
     // ── Time Tracking ──
     [HttpPost("{id}/time")]
@@ -204,7 +206,7 @@ public class TasksController(AppDbContext db) : ControllerBase
         if (dto.Seconds <= 0) return BadRequest("Seconds must be positive.");
         task.TimeSpentSeconds += dto.Seconds;
         await db.SaveChangesAsync();
-        await Log(id, $"Logged {FormatTime(dto.Seconds)} of work");
+        await Log(id, $"Logged {SanitizeLog(FormatTime(dto.Seconds))} of work");
         return Ok(new { timeSpentSeconds = task.TimeSpentSeconds });
     }
 
@@ -228,7 +230,7 @@ public class TasksController(AppDbContext db) : ControllerBase
         var label = await db.Labels.FindAsync(labelId);
         db.TaskLabels.Add(new TaskLabel { TaskId = id, LabelId = labelId });
         await db.SaveChangesAsync();
-        await Log(id, $"Label \"{label?.Name ?? labelId.ToString()}\" added");
+        await Log(id, $"Label \"{SanitizeLog(label?.Name ?? labelId.ToString())}\" added");
         return Ok();
     }
 
@@ -242,7 +244,7 @@ public class TasksController(AppDbContext db) : ControllerBase
         var label = await db.Labels.FindAsync(labelId);
         db.TaskLabels.Remove(tl);
         await db.SaveChangesAsync();
-        await Log(id, $"Label \"{label?.Name ?? labelId.ToString()}\" removed");
+        await Log(id, $"Label \"{SanitizeLog(label?.Name ?? labelId.ToString())}\" removed");
         return NoContent();
     }
 
@@ -264,7 +266,7 @@ public class TasksController(AppDbContext db) : ControllerBase
         var subtask = new SubTask { Title = dto.Title, TaskId = id };
         db.SubTasks.Add(subtask);
         await db.SaveChangesAsync();
-        await Log(id, $"Subtask \"{dto.Title}\" added");
+        await Log(id, $"Subtask \"{SanitizeLog(dto.Title)}\" added");
         return Ok(new SubTaskDto(subtask.Id, subtask.Title, subtask.IsCompleted));
     }
 
@@ -280,7 +282,7 @@ public class TasksController(AppDbContext db) : ControllerBase
         subtask.IsCompleted = dto.IsCompleted;
         await db.SaveChangesAsync();
         if (wasCompleted != dto.IsCompleted)
-            await Log(id, $"Subtask \"{dto.Title}\" marked {(dto.IsCompleted ? "complete" : "incomplete")}");
+            await Log(id, $"Subtask \"{SanitizeLog(dto.Title)}\" marked {(dto.IsCompleted ? "complete" : "incomplete")}");
         return Ok(new SubTaskDto(subtask.Id, subtask.Title, subtask.IsCompleted));
     }
 

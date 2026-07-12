@@ -28,11 +28,13 @@ public class RecurringTaskService(IServiceScopeFactory scopeFactory, ILogger<Rec
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+        const int batchSize = 200;
         var candidates = await db.Tasks
             .Where(t => t.Recurrence != RecurrenceType.None
                      && t.Status == Models.TaskStatus.Done
                      && !t.RecurrenceSpawned
                      && !t.IsArchived)
+            .Take(batchSize)
             .ToListAsync();
 
         foreach (var task in candidates)
