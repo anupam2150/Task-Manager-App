@@ -108,7 +108,7 @@ using (var scope = app.Services.CreateScope())
 
     // Grant admin to accounts owned by Anupam Shinde
     var adminUsernames = new[] { "admin", "anupam", "snivo", "demo", "testuser" };
-    var adminUsers = db.Users.Where(u => adminUsernames.Contains(u.Username.ToLower())).ToList();
+    var adminUsers = db.Users.Where(u => adminUsernames.Contains(u.Username.ToLower())).Take(10).ToList();
     foreach (var u in adminUsers)
         u.IsAdmin = true;
     if (adminUsers.Count > 0) db.SaveChanges();
